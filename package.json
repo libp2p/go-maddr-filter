@@ -24,6 +24,7 @@
   "language": "go",
   "license": "",
   "name": "go-maddr-filter",
-  "version": "0.0.0"
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "1.0.0"
 }
 
