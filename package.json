@@ -9,9 +9,9 @@
   "gxDependencies": [
     {
       "author": "jbenet",
-      "hash": "QmUBQv5su4z2zkkfEwShU22Vfq3bWRtD7bogYiSCeyjvEd",
+      "hash": "Qmf1Gq7N45Rpuw7ev47uWgH6dLPtdnvcMRNPkVBwqjLJg2",
       "name": "go-multiaddr-net",
-      "version": "1.5.1"
+      "version": "1.5.4"
     }
   ],
   "gxVersion": "0.9.1",
@@ -19,6 +19,6 @@
   "license": "",
   "name": "go-maddr-filter",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "1.1.2"
+  "version": "1.1.3"
 }
 
