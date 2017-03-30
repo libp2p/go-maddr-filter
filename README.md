@@ -38,6 +38,15 @@ f.AddDialFilter(ipnet)
 // check if an address is blocked
 lanaddr, _ := ma.NewMultiaddr("/ip4/192.168.0.17/tcp/4050")
 fmt.Println(f.AddrBlocked(lanaddr))
+
+// the default for a filter is accept, but we can change that
+f.Remove(ipnet)
+f.filterDefault = true
+fmt.Println(f.AddrBlocked(lanaddr))
+
+// we can now allow the local LAN, denying everything else
+f.AddAllowFilter(ipnet)
+fmt.Println(f.AddrBlocked(lanaddr))
 ```
 
 ## Contribute
