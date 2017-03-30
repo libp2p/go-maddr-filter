@@ -16,26 +16,26 @@ type FilterEntry struct {
 type Filters struct {
 	mu            sync.RWMutex
 	filterDefault bool
-	filters       map[string]*FilterEntry
+	filters       []*FilterEntry
 }
 
 func NewFilters() *Filters {
 	return &Filters{
 		filterDefault: false,
-		filters:       make(map[string]*FilterEntry),
+		filters:       make([]*FilterEntry, 0),
 	}
 }
 
 func (fs *Filters) AddDialFilter(f *net.IPNet) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	fs.filters[f.String()] = &FilterEntry{f: f, reject: true}
+	fs.filters = append(fs.filters, &FilterEntry{f: f, reject: true})
 }
 
 func (fs *Filters) AddAllowFilter(f *net.IPNet) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	fs.filters[f.String()] = &FilterEntry{f: f, reject: false}
+	fs.filters = append(fs.filters, &FilterEntry{f: f, reject: false})
 }
 
 func (f *Filters) AddrBlocked(a ma.Multiaddr) bool {
@@ -56,15 +56,15 @@ func (f *Filters) AddrBlocked(a ma.Multiaddr) bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	var flag bool = f.filterDefault
+	var reject bool = f.filterDefault
 
 	for _, ft := range f.filters {
 		if ft.f.Contains(netip) {
-			flag = ft.reject
+			reject = ft.reject
 		}
 	}
 
-	return flag
+	return reject
 }
 
 func (f *Filters) Filters() []*net.IPNet {
@@ -77,8 +77,26 @@ func (f *Filters) Filters() []*net.IPNet {
 	return out
 }
 
+func (f *Filters) Find(ff *net.IPNet) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	ffs := ff.String()
+
+	for idx, ft := range f.filters {
+		if ft.f.String() == ffs {
+			return idx
+		}
+	}
+
+	return -1
+}
+
 func (f *Filters) Remove(ff *net.IPNet) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	delete(f.filters, ff.String())
+
+	idx := f.Find(ff)
+	if idx != -1 {
+		f.filters = append(f.filters[:idx], f.filters[idx+1:]...)
+	}
 }
