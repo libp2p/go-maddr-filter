@@ -8,21 +8,34 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 )
 
+type FilterEntry struct {
+	f      *net.IPNet
+	reject bool
+}
+
 type Filters struct {
-	mu      sync.RWMutex
-	filters map[string]*net.IPNet
+	mu            sync.RWMutex
+	filterDefault bool
+	filters       map[string]*FilterEntry
 }
 
 func NewFilters() *Filters {
 	return &Filters{
-		filters: make(map[string]*net.IPNet),
+		filterDefault: false,
+		filters:       make(map[string]*FilterEntry),
 	}
 }
 
 func (fs *Filters) AddDialFilter(f *net.IPNet) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	fs.filters[f.String()] = f
+	fs.filters[f.String()] = &FilterEntry{f: f, reject: true}
+}
+
+func (fs *Filters) AddAllowFilter(f *net.IPNet) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	fs.filters[f.String()] = &FilterEntry{f: f, reject: false}
 }
 
 func (f *Filters) AddrBlocked(a ma.Multiaddr) bool {
@@ -42,12 +55,16 @@ func (f *Filters) AddrBlocked(a ma.Multiaddr) bool {
 
 	f.mu.RLock()
 	defer f.mu.RUnlock()
+
+	var flag bool = f.filterDefault
+
 	for _, ft := range f.filters {
-		if ft.Contains(netip) {
-			return true
+		if ft.f.Contains(netip) {
+			flag = ft.reject
 		}
 	}
-	return false
+
+	return flag
 }
 
 func (f *Filters) Filters() []*net.IPNet {
@@ -55,7 +72,7 @@ func (f *Filters) Filters() []*net.IPNet {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	for _, ff := range f.filters {
-		out = append(out, ff)
+		out = append(out, ff.f)
 	}
 	return out
 }
