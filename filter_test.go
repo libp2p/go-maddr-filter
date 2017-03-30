@@ -34,18 +34,70 @@ func TestFilter(t *testing.T) {
 		}
 	}
 
-	for _, notBlocked := range []string{
+	// test that other net intervals are not blocked
+	for _, addr := range []string{
 		"/ip4/1.2.4.1/tcp/123",
 		"/ip4/4.3.2.2/udp/123",
 		"/ip6/fe00::1/tcp/321",
 		"/ip6/fc00::2/udp/321",
 	} {
-		maddr, err := ma.NewMultiaddr(notBlocked)
+		maddr, err := ma.NewMultiaddr(addr)
 		if err != nil {
 			t.Error(err)
 		}
 		if f.AddrBlocked(maddr) {
-			t.Fatalf("expected %s to not be blocked", notBlocked)
+			t.Fatalf("expected %s to not be blocked", addr)
+		}
+	}
+
+	// test whitelisting
+	_, ipnet, _ := net.ParseCIDR("1.2.3.0/24")
+	f.AddAllowFilter(ipnet)
+	for _, addr := range []string{
+		"/ip4/1.2.3.1/tcp/123",
+		"/ip4/1.2.3.254/tcp/123",
+	} {
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			t.Error(err)
+		}
+		if f.AddrBlocked(maddr) {
+			t.Fatalf("expected %s to be whitelisted", addr)
+		}
+	}
+
+	// test default-deny
+	// from above we're allowing "1.2.3.0/24
+	f.filterDefault = true
+
+	// these are all whitelisted, should be OK
+	f.AddAllowFilter(ipnet)
+	for _, addr := range []string{
+		"/ip4/1.2.3.1/tcp/123",
+		"/ip4/1.2.3.254/tcp/123",
+	} {
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			t.Error(err)
+		}
+		if f.AddrBlocked(maddr) {
+			t.Fatalf("expected %s to be whitelisted", addr)
+		}
+	}
+
+	// these are not whitelisted, should be rejected now
+	for _, addr := range []string{
+		"/ip4/1.2.4.1/tcp/123",
+		"/ip4/4.3.2.2/udp/123",
+		"/ip6/fe00::1/tcp/321",
+		"/ip6/fc00::2/udp/321",
+	} {
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			t.Error(err)
+		}
+		if !f.AddrBlocked(maddr) {
+			t.Fatalf("expected %s to be blocked", addr)
 		}
 	}
 }
