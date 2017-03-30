@@ -126,8 +126,8 @@ func (f *Filters) Find(ff *net.IPNet) int {
 	return -1
 }
 
-// Remove removes a single net.IPNet's accept/reject rule(s) from the
-// Filters, if there is matching rule.
+// Remove removes all net.IPNet's accept/reject rule(s) from the
+// Filters, if there are matching rules.
 //
 // Makes no distinction between whether the rule is an allow or a
 // deny.
