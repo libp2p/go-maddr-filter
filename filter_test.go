@@ -68,7 +68,7 @@ func TestFilter(t *testing.T) {
 
 	// test default-deny
 	// from above we're allowing "1.2.3.0/24
-	f.filterDefault = true
+	f.RejectByDefault = true
 
 	// these are all whitelisted, should be OK
 	f.AddAllowFilter(ipnet)
