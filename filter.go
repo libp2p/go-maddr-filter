@@ -57,8 +57,8 @@ func (fs *Filters) AddAllowFilter(f *net.IPNet) {
 	fs.filters = append(fs.filters, &filterEntry{f: f, reject: false})
 }
 
-// AddrBlocked parses a ma.Multiaddr, and if it can get a valid netip
-// back applies the Filters, returning true if the given address
+// AddrBlocked parses a ma.Multiaddr and, if it can get a valid netip
+// back, applies the Filters returning true if the given address
 // should be rejected, and false if the given address is allowed.
 //
 // If a parsing error occurs, or no filter matches, the Filters
