@@ -80,6 +80,20 @@ func (fs *Filters) AddAllowFilter(f *net.IPNet) {
 	}
 }
 
+// Remove removes all net.IPNet's accept/reject rule(s) from the
+// Filters, if there are matching rules.
+//
+// Makes no distinction between whether the rule is an allow or a
+// deny.
+func (f *Filters) Remove(ff *net.IPNet) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for idx := f.find(ff); idx != -1; idx = f.find(ff) {
+		f.filters = append(f.filters[:idx], f.filters[idx+1:]...)
+	}
+}
+
 // AddrBlocked parses a ma.Multiaddr and, if it can get a valid netip
 // back, applies the Filters returning true if the given address
 // should be rejected, and false if the given address is allowed.
@@ -139,18 +153,4 @@ func (f *Filters) AllowFilters() []*net.IPNet {
 		}
 	}
 	return out
-}
-
-// Remove removes all net.IPNet's accept/reject rule(s) from the
-// Filters, if there are matching rules.
-//
-// Makes no distinction between whether the rule is an allow or a
-// deny.
-func (f *Filters) Remove(ff *net.IPNet) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	for idx := f.find(ff); idx != -1; idx = f.find(ff) {
-		f.filters = append(f.filters[:idx], f.filters[idx+1:]...)
-	}
 }
