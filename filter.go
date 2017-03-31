@@ -89,7 +89,8 @@ func (f *Filters) Remove(ff *net.IPNet) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	for idx := f.find(ff); idx != -1; idx = f.find(ff) {
+	idx := f.find(ff)
+	if idx != -1 {
 		f.filters = append(f.filters[:idx], f.filters[idx+1:]...)
 	}
 }
