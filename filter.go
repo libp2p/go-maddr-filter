@@ -92,17 +92,28 @@ func (f *Filters) AddrBlocked(a ma.Multiaddr) bool {
 	return reject
 }
 
-// Filters returns the list of net.IPNet structs in the given filter
-// rules.
-//
-// FIXME: This function doesn't really make any sense now that filters
-// can be both positive and negative.
+// Filters returns the list of DENY net.IPNet masks
 func (f *Filters) Filters() []*net.IPNet {
 	var out []*net.IPNet
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	for _, ff := range f.filters {
-		out = append(out, ff.f)
+		if ff.reject {
+			out = append(out, ff.f)
+		}
+	}
+	return out
+}
+
+// AllowFilters returns the list of ALLOW net.IPNet masks
+func (f *Filters) AllowFilters() []*net.IPNet {
+	var out []*net.IPNet
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	for _, ff := range f.filters {
+		if !ff.reject {
+			out = append(out, ff.f)
+		}
 	}
 	return out
 }
