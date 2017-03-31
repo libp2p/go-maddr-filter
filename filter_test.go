@@ -100,4 +100,24 @@ func TestFilter(t *testing.T) {
 			t.Fatalf("expected %s to be blocked", addr)
 		}
 	}
+
+	// Test removing the filter. It'll remove multiple, so make a dupe &
+	// a complement
+	f.AddAllowFilter(ipnet)
+	f.AddDialFilter(ipnet)
+
+	f.Remove(ipnet)
+	// our default is reject, so the 1.2.3.0/24 should be rejected now
+	for _, addr := range []string{
+		"/ip4/1.2.3.1/tcp/123",
+		"/ip4/4.3.3.254/udp/123",
+	} {
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			t.Error(err)
+		}
+		if !f.AddrBlocked(maddr) {
+			t.Fatalf("expected %s to be blocked", addr)
+		}
+	}
 }

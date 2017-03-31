@@ -107,15 +107,7 @@ func (f *Filters) Filters() []*net.IPNet {
 	return out
 }
 
-// Find returns the index of a given net.IPNet filter in the Filters
-// rule lists, or -1 if there is no such filter.
-//
-// Used to implement deletion. Makes no attempt to recognize other
-// filters which would match the same netmask.
-func (f *Filters) Find(ff *net.IPNet) int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
+func (f *Filters) find(ff *net.IPNet) int {
 	ffs := ff.String()
 	for idx, ft := range f.filters {
 		if ft.f.String() == ffs {
@@ -135,7 +127,7 @@ func (f *Filters) Remove(ff *net.IPNet) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	for idx := f.Find(ff); idx != -1; idx = f.Find(ff) {
+	for idx := f.find(ff); idx != -1; idx = f.find(ff) {
 		f.filters = append(f.filters[:idx], f.filters[idx+1:]...)
 	}
 }
