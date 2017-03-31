@@ -33,6 +33,17 @@ func NewFilters() *Filters {
 	}
 }
 
+func (f *Filters) find(ff *net.IPNet) int {
+	ffs := ff.String()
+	for idx, ft := range f.filters {
+		if ft.f.String() == ffs {
+			return idx
+		}
+	}
+
+	return -1
+}
+
 // AddDialFilter adds a reject rule to the given Filters.  Hosts
 // matching the given net.IPNet filter will be rejected, unless
 // another rule is added which states that they should be accepted.
@@ -42,7 +53,13 @@ func NewFilters() *Filters {
 func (fs *Filters) AddDialFilter(f *net.IPNet) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	fs.filters = append(fs.filters, &filterEntry{f: f, reject: true})
+
+	idx := fs.find(f)
+	if idx != -1 {
+		fs.filters[idx].reject = true
+	} else {
+		fs.filters = append(fs.filters, &filterEntry{f: f, reject: true})
+	}
 }
 
 // AddAllowFilter adds an accept rule to the given Filters. Hosts
@@ -54,7 +71,13 @@ func (fs *Filters) AddDialFilter(f *net.IPNet) {
 func (fs *Filters) AddAllowFilter(f *net.IPNet) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	fs.filters = append(fs.filters, &filterEntry{f: f, reject: false})
+
+	idx := fs.find(f)
+	if idx != -1 {
+		fs.filters[idx].reject = false
+	} else {
+		fs.filters = append(fs.filters, &filterEntry{f: f, reject: false})
+	}
 }
 
 // AddrBlocked parses a ma.Multiaddr and, if it can get a valid netip
@@ -116,17 +139,6 @@ func (f *Filters) AllowFilters() []*net.IPNet {
 		}
 	}
 	return out
-}
-
-func (f *Filters) find(ff *net.IPNet) int {
-	ffs := ff.String()
-	for idx, ft := range f.filters {
-		if ft.f.String() == ffs {
-			return idx
-		}
-	}
-
-	return -1
 }
 
 // Remove removes all net.IPNet's accept/reject rule(s) from the
