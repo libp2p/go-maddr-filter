@@ -41,7 +41,7 @@ fmt.Println(f.AddrBlocked(lanaddr))
 
 // the default for a filter is accept, but we can change that
 f.Remove(ipnet)
-f.filterDefault = true
+f.RejectByDefault = true
 fmt.Println(f.AddrBlocked(lanaddr))
 
 // we can now allow the local LAN, denying everything else
