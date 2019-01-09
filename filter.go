@@ -19,9 +19,10 @@ type filterEntry struct {
 //
 // Note that the last policy added to the Filters is authoritative.
 type Filters struct {
-	mu              sync.RWMutex
 	RejectByDefault bool
-	filters         []*filterEntry
+
+	mu      sync.RWMutex
+	filters []*filterEntry
 }
 
 // NewFilters constructs and returns a new set of net.IPNet filters.
@@ -33,9 +34,9 @@ func NewFilters() *Filters {
 	}
 }
 
-func (f *Filters) find(ff *net.IPNet) int {
+func (fs *Filters) find(ff *net.IPNet) int {
 	ffs := ff.String()
-	for idx, ft := range f.filters {
+	for idx, ft := range fs.filters {
 		if ft.f.String() == ffs {
 			return idx
 		}
@@ -62,6 +63,12 @@ func (fs *Filters) AddDialFilter(f *net.IPNet) {
 	}
 }
 
+// AddDenyFilter is an alias of AddDialFilter (which is preserved to prevent
+// an immediate breaking change.)
+func (fs *Filters) AddDenyFilter(f *net.IPNet) {
+	fs.AddDialFilter(f)
+}
+
 // AddAllowFilter adds an accept rule to the given Filters. Hosts
 // matching the given net.IPNet filter will be accepted, unless
 // another policy is added which states that they should be rejected.
@@ -85,13 +92,13 @@ func (fs *Filters) AddAllowFilter(f *net.IPNet) {
 //
 // Makes no distinction between whether the rule is an allow or a
 // deny.
-func (f *Filters) Remove(ff *net.IPNet) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+func (fs *Filters) Remove(ff *net.IPNet) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
-	idx := f.find(ff)
+	idx := fs.find(ff)
 	if idx != -1 {
-		f.filters = append(f.filters[:idx], f.filters[idx+1:]...)
+		fs.filters = append(fs.filters[:idx], fs.filters[idx+1:]...)
 	}
 }
 
@@ -101,27 +108,27 @@ func (f *Filters) Remove(ff *net.IPNet) {
 //
 // If a parsing error occurs, or no filter matches, the Filters
 // default is returned.
-func (f *Filters) AddrBlocked(a ma.Multiaddr) bool {
+func (fs *Filters) AddrBlocked(a ma.Multiaddr) bool {
 	maddr := ma.Split(a)
 	if len(maddr) == 0 {
-		return f.RejectByDefault
+		return fs.RejectByDefault
 	}
 	netaddr, err := manet.ToNetAddr(maddr[0])
 	if err != nil {
 		// if we cant parse it, its probably not blocked
-		return f.RejectByDefault
+		return fs.RejectByDefault
 	}
 	netip := net.ParseIP(netaddr.String())
 	if netip == nil {
-		return f.RejectByDefault
+		return fs.RejectByDefault
 	}
 
-	f.mu.RLock()
-	defer f.mu.RUnlock()
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
 
-	var reject bool = f.RejectByDefault
+	reject := fs.RejectByDefault
 
-	for _, ft := range f.filters {
+	for _, ft := range fs.filters {
 		if ft.f.Contains(netip) {
 			reject = ft.reject
 		}
@@ -131,11 +138,11 @@ func (f *Filters) AddrBlocked(a ma.Multiaddr) bool {
 }
 
 // Filters returns the list of DENY net.IPNet masks
-func (f *Filters) Filters() []*net.IPNet {
+func (fs *Filters) Filters() []*net.IPNet {
 	var out []*net.IPNet
-	f.mu.RLock()
-	defer f.mu.RUnlock()
-	for _, ff := range f.filters {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+	for _, ff := range fs.filters {
 		if ff.reject {
 			out = append(out, ff.f)
 		}
@@ -143,12 +150,17 @@ func (f *Filters) Filters() []*net.IPNet {
 	return out
 }
 
+// RejectFilters is a more semantically meaningful alias for Filters
+func (fs *Filters) RejectFilters() []*net.IPNet {
+	return fs.Filters()
+}
+
 // AllowFilters returns the list of ALLOW net.IPNet masks
-func (f *Filters) AllowFilters() []*net.IPNet {
+func (fs *Filters) AllowFilters() []*net.IPNet {
 	var out []*net.IPNet
-	f.mu.RLock()
-	defer f.mu.RUnlock()
-	for _, ff := range f.filters {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+	for _, ff := range fs.filters {
 		if !ff.reject {
 			out = append(out, ff.f)
 		}
