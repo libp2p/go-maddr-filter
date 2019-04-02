@@ -32,20 +32,19 @@ f := NewFilters()
 
 // filter out addresses on the 192.168 subnet
 _, ipnet, _ := net.ParseCIDR("192.168.0.0/16")
-f.AddDialFilter(ipnet)
-
+f.AddDenyFilter(ipnet)
 
 // check if an address is blocked
 lanaddr, _ := ma.NewMultiaddr("/ip4/192.168.0.17/tcp/4050")
 fmt.Println(f.AddrBlocked(lanaddr))
 
 // the default for a filter is accept, but we can change that
-f.Remove(ipnet)
-f.RejectByDefault = true
+f.RemoveLiteral(ipnet)
+f.DefaultAction = ActionDeny
 fmt.Println(f.AddrBlocked(lanaddr))
 
 // we can now allow the local LAN, denying everything else
-f.AddAllowFilter(ipnet)
+f.AddAcceptFilter(ipnet)
 fmt.Println(f.AddrBlocked(lanaddr))
 ```
 

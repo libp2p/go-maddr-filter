@@ -8,162 +8,158 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 )
 
+// Action is an enum modelling all possible filter actions.
+type Action int32
+
+const (
+	ActionNone Action = iota // zero value.
+	ActionAccept
+	ActionDeny
+)
+
 type filterEntry struct {
-	f      *net.IPNet
-	reject bool
+	f      net.IPNet
+	action Action
 }
 
-// Filters is a structure representing a collection of allow/deny
-// net.IPNet filters, together with the RejectByDefault flag, which
+// Filters is a structure representing a collection of accept/deny
+// net.IPNet filters, together with the DefaultAction flag, which
 // represents the default filter policy.
 //
 // Note that the last policy added to the Filters is authoritative.
 type Filters struct {
-	RejectByDefault bool
+	DefaultAction Action
 
 	mu      sync.RWMutex
 	filters []*filterEntry
 }
 
 // NewFilters constructs and returns a new set of net.IPNet filters.
-// By default, the new filter rejects no addresses.
+// By default, the new filter accepts all addresses.
 func NewFilters() *Filters {
 	return &Filters{
-		RejectByDefault: false,
-		filters:         make([]*filterEntry, 0),
+		DefaultAction: ActionAccept,
+		filters:       make([]*filterEntry, 0),
 	}
 }
 
-func (fs *Filters) find(ff *net.IPNet) int {
-	ffs := ff.String()
+func (fs *Filters) find(ipnet net.IPNet) (int, *filterEntry) {
+	s := ipnet.String()
 	for idx, ft := range fs.filters {
-		if ft.f.String() == ffs {
-			return idx
+		if ft.f.String() == s {
+			return idx, ft
 		}
 	}
-
-	return -1
+	return -1, nil
 }
 
-// AddDialFilter adds a reject rule to the given Filters.  Hosts
-// matching the given net.IPNet filter will be rejected, unless
+// AddDialFilter adds a deny rule to this Filters set. Hosts
+// matching the given net.IPNet filter will be denied, unless
 // another rule is added which states that they should be accepted.
 //
 // No effort is made to prevent duplication of filters, or to simplify
 // the filters list.
+//
+// DEPRECATED. Use AddFilter.
 func (fs *Filters) AddDialFilter(f *net.IPNet) {
+	fs.AddFilter(*f, ActionDeny)
+}
+
+// AddFilter adds a rule to the Filters set, enforcing the desired action for
+// the provided IPNet mask.
+func (fs *Filters) AddFilter(ipnet net.IPNet, action Action) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	idx := fs.find(f)
-	if idx != -1 {
-		fs.filters[idx].reject = true
+	if _, f := fs.find(ipnet); f != nil {
+		f.action = action
 	} else {
-		fs.filters = append(fs.filters, &filterEntry{f: f, reject: true})
+		fs.filters = append(fs.filters, &filterEntry{ipnet, action})
 	}
 }
 
-// AddDenyFilter is an alias of AddDialFilter (which is preserved to prevent
-// an immediate breaking change.)
-func (fs *Filters) AddDenyFilter(f *net.IPNet) {
-	fs.AddDialFilter(f)
-}
-
-// AddAllowFilter adds an accept rule to the given Filters. Hosts
-// matching the given net.IPNet filter will be accepted, unless
-// another policy is added which states that they should be rejected.
-//
-// No effort is made to prevent duplication of filters, or to simplify
-// the filters list.
-func (fs *Filters) AddAllowFilter(f *net.IPNet) {
+// RemoveLiteral removes the first filter associated with the supplied IPNet,
+// returning whether something was removed or not. It makes no distinction
+// between whether the rule is an accept or a deny.
+func (fs *Filters) RemoveLiteral(ipnet net.IPNet) (removed bool) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	idx := fs.find(f)
-	if idx != -1 {
-		fs.filters[idx].reject = false
-	} else {
-		fs.filters = append(fs.filters, &filterEntry{f: f, reject: false})
-	}
-}
-
-// Remove removes all net.IPNet's accept/reject rule(s) from the
-// Filters, if there are matching rules.
-//
-// Makes no distinction between whether the rule is an allow or a
-// deny.
-func (fs *Filters) Remove(ff *net.IPNet) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	idx := fs.find(ff)
-	if idx != -1 {
+	if idx, _ := fs.find(ipnet); idx != -1 {
 		fs.filters = append(fs.filters[:idx], fs.filters[idx+1:]...)
+		return true
 	}
+	return false
 }
 
-// AddrBlocked parses a ma.Multiaddr and, if it can get a valid netip
-// back, applies the Filters returning true if the given address
-// should be rejected, and false if the given address is allowed.
+// AddrBlocked parses a ma.Multiaddr and, if a valid netip is found, it applies the
+// Filter set rules, returning true if the given address should be denied, and false if
+// the given address is accepted.
 //
-// If a parsing error occurs, or no filter matches, the Filters
+// If a parsing error occurs, or no filter matches, the Filters'
 // default is returned.
-func (fs *Filters) AddrBlocked(a ma.Multiaddr) bool {
+//
+// TODO: currently, the last filter to match wins always, but it shouldn't be that way.
+//  Instead, the highest-specific last filter should win; that way more specific filters
+//  override more general ones.
+func (fs *Filters) AddrBlocked(a ma.Multiaddr) (deny bool) {
 	maddr := ma.Split(a)
 	if len(maddr) == 0 {
-		return fs.RejectByDefault
+		return fs.DefaultAction == ActionDeny
 	}
 	netaddr, err := manet.ToNetAddr(maddr[0])
 	if err != nil {
-		// if we cant parse it, its probably not blocked
-		return fs.RejectByDefault
+		// if we can't parse it, it's probably not blocked.
+		return fs.DefaultAction == ActionDeny
 	}
 	netip := net.ParseIP(netaddr.String())
 	if netip == nil {
-		return fs.RejectByDefault
+		return fs.DefaultAction == ActionDeny
 	}
 
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
-	reject := fs.RejectByDefault
-
+	action := fs.DefaultAction
 	for _, ft := range fs.filters {
+		ft.f.Mask.Size()
 		if ft.f.Contains(netip) {
-			reject = ft.reject
+			action = ft.action
 		}
 	}
 
-	return reject
+	return action == ActionDeny
 }
 
-// Filters returns the list of DENY net.IPNet masks
-func (fs *Filters) Filters() []*net.IPNet {
-	var out []*net.IPNet
+// Filters returns the list of DENY net.IPNet masks. For backwards compatibility.
+//
+// A copy of the filters is made prior to returning, so the inner state is not exposed.
+//
+// DEPRECATED. Use FiltersForAction().
+func (fs *Filters) Filters() (result []*net.IPNet) {
+	ffa := fs.FiltersForAction(ActionDeny)
+	for _, res := range ffa {
+		result = append(result, &res)
+	}
+	return result
+}
+
+func (fs *Filters) ActionForFilter(ipnet net.IPNet) (action Action, ok bool) {
+	if _, f := fs.find(ipnet); f != nil {
+		return f.action, true
+	}
+	return ActionNone, false
+}
+
+// FiltersForAction returns the filters associated with the indicated action.
+func (fs *Filters) FiltersForAction(action Action) (result []net.IPNet) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
+
 	for _, ff := range fs.filters {
-		if ff.reject {
-			out = append(out, ff.f)
+		if ff.action == action {
+			result = append(result, ff.f)
 		}
 	}
-	return out
-}
-
-// RejectFilters is a more semantically meaningful alias for Filters
-func (fs *Filters) RejectFilters() []*net.IPNet {
-	return fs.Filters()
-}
-
-// AllowFilters returns the list of ALLOW net.IPNet masks
-func (fs *Filters) AllowFilters() []*net.IPNet {
-	var out []*net.IPNet
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
-	for _, ff := range fs.filters {
-		if !ff.reject {
-			out = append(out, ff.f)
-		}
-	}
-	return out
+	return result
 }
