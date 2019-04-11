@@ -50,3 +50,7 @@ Small note: If editing the Readme, please conform to the [standard-readme](https
 ## License
 
 MIT © Jeromy Johnson
+
+---
+
+The last gx published version of this module was: 1.1.13: QmT6C5ebDy92zyRzdmSNyda5q7zkNXy68X47RDJiHpvaxd
