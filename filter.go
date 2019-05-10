@@ -122,7 +122,6 @@ func (fs *Filters) AddrBlocked(a ma.Multiaddr) (deny bool) {
 
 	action := fs.DefaultAction
 	for _, ft := range fs.filters {
-		ft.f.Mask.Size()
 		if ft.f.Contains(netip) {
 			action = ft.action
 		}
