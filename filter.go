@@ -60,7 +60,7 @@ func (fs *Filters) find(ipnet net.IPNet) (int, *filterEntry) {
 // No effort is made to prevent duplication of filters, or to simplify
 // the filters list.
 //
-// DEPRECATED. Use AddFilter.
+// Deprecated: Use AddFilter().
 func (fs *Filters) AddDialFilter(f *net.IPNet) {
 	fs.AddFilter(*f, ActionDeny)
 }
@@ -76,6 +76,15 @@ func (fs *Filters) AddFilter(ipnet net.IPNet, action Action) {
 	} else {
 		fs.filters = append(fs.filters, &filterEntry{ipnet, action})
 	}
+}
+
+// RemoveLiteral removes the first filter associated with the supplied IPNet,
+// returning whether something was removed or not. It makes no distinction
+// between whether the rule is an accept or a deny.
+//
+// Deprecated: use RemoveLiteral() instead.
+func (fs *Filters) Remove(ipnet *net.IPNet) (removed bool) {
+	return fs.RemoveLiteral(*ipnet)
 }
 
 // RemoveLiteral removes the first filter associated with the supplied IPNet,
@@ -134,7 +143,7 @@ func (fs *Filters) AddrBlocked(a ma.Multiaddr) (deny bool) {
 //
 // A copy of the filters is made prior to returning, so the inner state is not exposed.
 //
-// DEPRECATED. Use FiltersForAction().
+// Deprecated: Use FiltersForAction().
 func (fs *Filters) Filters() (result []*net.IPNet) {
 	ffa := fs.FiltersForAction(ActionDeny)
 	for _, res := range ffa {
