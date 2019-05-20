@@ -7,6 +7,32 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
+func TestFilterListing(t *testing.T) {
+	f := NewFilters()
+	expected := map[string]bool{
+		"1.2.3.0/24":  true,
+		"4.3.2.1/32":  true,
+		"fd00::/8":    true,
+		"fc00::1/128": true,
+	}
+	for cidr := range expected {
+		_, ipnet, _ := net.ParseCIDR(cidr)
+		f.AddDialFilter(ipnet)
+	}
+
+	for _, filter := range f.Filters() {
+		cidr := filter.String()
+		if expected[cidr] {
+			delete(expected, cidr)
+		} else {
+			t.Errorf("unexected filter %s", cidr)
+		}
+	}
+	for cidr := range expected {
+		t.Errorf("expected filter %s", cidr)
+	}
+}
+
 func TestFilterBlocking(t *testing.T) {
 	f := NewFilters()
 
