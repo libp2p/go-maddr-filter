@@ -147,6 +147,7 @@ func (fs *Filters) AddrBlocked(a ma.Multiaddr) (deny bool) {
 func (fs *Filters) Filters() (result []*net.IPNet) {
 	ffa := fs.FiltersForAction(ActionDeny)
 	for _, res := range ffa {
+		res := res // allocate a new copy
 		result = append(result, &res)
 	}
 	return result
