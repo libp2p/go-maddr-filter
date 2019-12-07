@@ -83,7 +83,6 @@ func TestFilterBlocking(t *testing.T) {
 		"/ip4/4.3.2.2/udp/123",
 		"/ip6/fe00::1/tcp/321",
 		"/ip6/fc00::2/udp/321",
-		"",
 	} {
 		maddr, err := ma.NewMultiaddr(addr)
 		if err != nil {
