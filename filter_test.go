@@ -4,7 +4,11 @@ import (
 	"net"
 	"testing"
 
+	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/peer"
+
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFilterListing(t *testing.T) {
@@ -31,6 +35,80 @@ func TestFilterListing(t *testing.T) {
 	for cidr := range expected {
 		t.Errorf("expected filter %s", cidr)
 	}
+}
+
+func TestFilterToConnectionGater(t *testing.T) {
+	f := NewFilters()
+
+	_, ipnet, _ := net.ParseCIDR("0.1.2.3/24")
+	f.AddDialFilter(ipnet)
+	filters := f.Filters()
+	if len(filters) != 1 {
+		t.Fatal("Expected only 1 filter")
+	}
+
+	if a, ok := f.ActionForFilter(*ipnet); !ok || a != ActionDeny {
+		t.Fatal("Expected filter with DENY action")
+	}
+
+	if !f.RemoveLiteral(*filters[0]) {
+		t.Error("expected true value from RemoveLiteral")
+	}
+
+	for _, cidr := range []string{
+		"1.2.3.0/24",
+		"4.3.2.1/32",
+		"fd00::/8",
+		"fc00::1/128",
+	} {
+		_, ipnet, _ := net.ParseCIDR(cidr)
+		f.AddDialFilter(ipnet)
+	}
+
+	// These addresses should all be blocked
+	for _, blocked := range []string{
+		"/ip4/1.2.3.4/tcp/123",
+		"/ip4/4.3.2.1/udp/123",
+		"/ip6/fd00::2/tcp/321",
+		"/ip6/fc00::1/udp/321",
+	} {
+		maddr, err := ma.NewMultiaddr(blocked)
+		if err != nil {
+			t.Error(err)
+		}
+		if !f.DenyAddrConnection(maddr) {
+			t.Fatalf("expected %s to be blocked", blocked)
+		}
+	}
+
+	// test that other net intervals are not blocked
+	for _, addr := range []string{
+		"/ip4/1.2.4.1/tcp/123",
+		"/ip4/4.3.2.2/udp/123",
+		"/ip6/fe00::1/tcp/321",
+		"/ip6/fc00::2/udp/321",
+	} {
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			t.Error(err)
+		}
+		if f.DenyAddrConnection(maddr) {
+			t.Fatalf("expected %s to not be blocked", addr)
+		}
+	}
+
+	pcg := f.ToConnectionGater(&mockPeerGater{peer.ID("test")})
+
+	require.False(t, pcg.DenyPeerConnection(network.DirInbound, peer.ID("1")))
+	require.True(t, pcg.DenyPeerConnection(network.DirOutbound, peer.ID("test")))
+}
+
+type mockPeerGater struct {
+	p peer.ID
+}
+
+func (m *mockPeerGater) DenyPeerConnection(direction network.Direction, id peer.ID) (deny bool) {
+	return id == m.p
 }
 
 func TestFilterBlocking(t *testing.T) {

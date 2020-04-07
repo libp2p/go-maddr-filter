@@ -4,6 +4,10 @@ import (
 	"net"
 	"sync"
 
+	"github.com/libp2p/go-libp2p-core/connmgr"
+	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/peer"
+
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -29,8 +33,9 @@ type filterEntry struct {
 type Filters struct {
 	DefaultAction Action
 
-	mu      sync.RWMutex
-	filters []*filterEntry
+	mu        sync.RWMutex
+	filters   []*filterEntry
+	peerGater connmgr.PeerConnectionGater
 }
 
 // NewFilters constructs and returns a new set of net.IPNet filters.
@@ -178,4 +183,19 @@ func (fs *Filters) FiltersForAction(action Action) (result []net.IPNet) {
 		}
 	}
 	return result
+}
+
+func (fs *Filters) DenyAddrConnection(addr ma.Multiaddr) bool {
+	return fs.AddrBlocked(addr)
+}
+
+func (fs *Filters) DenyPeerConnection(dir network.Direction, id peer.ID) bool {
+	return fs.peerGater != nil && fs.peerGater.DenyPeerConnection(dir, id)
+}
+
+// ToConnectionGater transforms a Filter to a Connection Gater so it can be configured in libp2p.
+// We need this because libp2p no longer allows configuring Filters on the node.
+func (fs *Filters) ToConnectionGater(peerGater connmgr.PeerConnectionGater) connmgr.ConnectionGater {
+	fs.peerGater = peerGater
+	return fs
 }
