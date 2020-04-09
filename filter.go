@@ -4,6 +4,12 @@ import (
 	"net"
 	"sync"
 
+	"github.com/libp2p/go-libp2p-core/connmgr"
+	"github.com/libp2p/go-libp2p-core/control"
+	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/transport"
+
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -178,4 +184,37 @@ func (fs *Filters) FiltersForAction(action Action) (result []net.IPNet) {
 		}
 	}
 	return result
+}
+
+type connectionGaterShim struct {
+	f *Filters
+}
+
+func (c *connectionGaterShim) InterceptDial(addr ma.Multiaddr) (allow bool) {
+	return !c.f.AddrBlocked(addr)
+}
+
+func (c *connectionGaterShim) InterceptPeerDial(p peer.ID) (allow bool) {
+	return true
+}
+
+func (c *connectionGaterShim) InterceptAccept(caddr network.ConnMultiaddrs) (allow bool) {
+	return !c.f.AddrBlocked(caddr.RemoteMultiaddr())
+}
+
+func (c *connectionGaterShim) InterceptSecured(d network.Direction, p peer.ID, caddr network.ConnMultiaddrs) (allow bool) {
+	return !c.f.AddrBlocked(caddr.RemoteMultiaddr())
+}
+
+func (c *connectionGaterShim) InterceptUpgraded(tc transport.CapableConn) (allow bool, reason control.DisconnectReason) {
+	return !c.f.AddrBlocked(tc.RemoteMultiaddr()), 0
+}
+
+// ToConnectionGater is an adaptor that transforms a Filter to a Connection Gater.
+// The resulting ConnectionGater will reject inbound and outbound connections with remote addresses
+// that have been marked as "Deny" in the Filter irrespective of their life cycle state.
+// Note: We NEVER send disconnect control messages for connections that are gated because
+// of this adaptor.
+func (fs *Filters) ToConnectionGater() connmgr.ConnectionGater {
+	return &connectionGaterShim{fs}
 }
