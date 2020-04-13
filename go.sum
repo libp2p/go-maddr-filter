@@ -40,6 +40,8 @@ github.com/libp2p/go-buffer-pool v0.0.2/go.mod h1:MvaB6xw5vOrDl8rYZGLFdKAuk/hRoR
 github.com/libp2p/go-flow-metrics v0.0.3/go.mod h1:HeoSNUrOJVK1jEpDqVEiUOIXqhbnS27omG0uWU5slZs=
 github.com/libp2p/go-libp2p-core v0.5.2-0.20200409124714-2f4d34c727d9 h1:06F5u6iQNSiJl3FGTnDZfJtSqtIiMYlELemNQ5myESc=
 github.com/libp2p/go-libp2p-core v0.5.2-0.20200409124714-2f4d34c727d9/go.mod h1:uN7L2D4EvPCvzSH5SrhR72UWbnSGpt5/a35Sm4upn4Y=
+github.com/libp2p/go-libp2p-core v0.5.2-0.20200413071328-7f44bb7684b5 h1:mlXQQ8cEcVb46PFsOFoGByjo1LIL1hw1i0GBeK5b/ZE=
+github.com/libp2p/go-libp2p-core v0.5.2-0.20200413071328-7f44bb7684b5/go.mod h1:uN7L2D4EvPCvzSH5SrhR72UWbnSGpt5/a35Sm4upn4Y=
 github.com/libp2p/go-msgio v0.0.4/go.mod h1:63lBBgOTDKQL6EWazRMCwXsEeEeK9O2Cd+0+6OOuipQ=
 github.com/libp2p/go-openssl v0.0.4 h1:d27YZvLoTyMhIN4njrkr8zMDOM4lfpHIp6A+TK9fovg=
 github.com/libp2p/go-openssl v0.0.4/go.mod h1:unDrJpgy3oFr+rqXsarWifmJuNnJR4chtO1HmaZjggc=

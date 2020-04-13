@@ -190,7 +190,7 @@ type connectionGaterShim struct {
 	f *Filters
 }
 
-func (c *connectionGaterShim) InterceptDial(addr ma.Multiaddr) (allow bool) {
+func (c *connectionGaterShim) InterceptPeerAddrDial(_ peer.ID, addr ma.Multiaddr) (allow bool) {
 	return !c.f.AddrBlocked(addr)
 }
 
